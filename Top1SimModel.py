@@ -271,8 +271,9 @@ class Top1SimModel(SimModel):
         print(str(self))
 
         if self.task == 'binary_cls' and class_weight:
-            weight = [np.sum(labels == 1) * 2 / len(labels), np.sum(labels == 0) * 2 / len(labels)]
-            print("data ratio: ", "class 0 is", weight[1] / 2, ", class 1 is", weight[0] / 2)
+            weight = [len(labels) / (np.sum(labels == 0) * 2), len(labels) / (np.sum(labels == 1) * 2)]
+            print("class weight: ", "class 0 is", weight[0], ", class 1 is", weight[1])
+            print("data ratio: ", "class 0 is", (np.sum(labels == 0) / len(labels), ", class 1 is", (np.sum(labels == 1) / len(labels))
 
         for epoch in range(self.num_epochs):
             if train_idx is not None:
@@ -300,7 +301,7 @@ class Top1SimModel(SimModel):
                     if class_weight:
                         cpu_labels = labels.cpu()
                         weights = torch.tensor(np.where(cpu_labels == 0, weight[0], weight[1]))
-                        criterion = nn.BCELoss(weight=weights.cuda())
+                        criterion = nn.BCELoss(weight=weights.to(self.device))
                     loss = criterion(outputs, labels)
                     all_probs = np.concatenate([all_probs, outputs.detach().cpu().numpy()])
                     preds = outputs > 0.5
