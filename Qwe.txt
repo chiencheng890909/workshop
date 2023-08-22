@@ -1,0 +1,101 @@
+# coding: utf-8
+# one company 0.66 -> multi-company 0.70~0.72
+
+
+
+from sqlalchemy import create_engine
+import pandas as pd
+import numpy as np
+import xgboost as xgb
+from sklearn.ensemble import RandomForestClassifier
+import time
+pd.set_option("display.html.table_schema",True)
+
+
+#expand row and column to explore data
+pd.set_option('display.max_rows', 5000)
+pd.set_option('display.max_columns', 5000)
+pd.set_option('display.width', 10000)
+
+
+################## Loading Data 
+ACCOUNT = '' # user name for ods
+PASSWORD = '' # password 
+IP = '' # IP for ods
+PORT = '' 
+DATABASE = ''
+engine = create_engine(f'oracle+cx_oracle://{ACCOUNT}:{PASSWORD}@{IP}:{PORT}/{DATABASE}')
+
+
+sql_query = """
+
+"""
+
+df = pd.read_sql(sql_query, engine) # DB table in python
+
+#################### Bootstrap Sampling
+
+df.drop(df.select_dtypes(['object']), inplace=True, axis=1) 
+
+status_0 = df[(df["y_flag"]==0)] 
+status_1 = df[(df["y_flag"]==1)]
+subset_of_status_0 = status_0.sample(n=6000)
+subset_of_status_1 = status_1.sample(n=6000)
+data_clean = pd.concat([subset_of_status_1, subset_of_status_0])
+data_clean.shape 
+
+###################### Reshuffle
+data_clean = data_clean.sample(frac=1).reset_index(drop=True)
+data_clean['y_flag'].value_counts()
+
+################## split
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(data_clean.iloc[:,1:], data_clean.iloc[:,0], test_size=0.2, random_state=42)
+X_train.shape, X_test.shape, y_train.shape, y_test.shape
+
+################### ROC Curve
+from sklearn import preprocessing,metrics 
+import matplotlib.pyplot as plt
+
+import seaborn as sns
+sns.set('talk', 'whitegrid', 'dark', font_scale=1, rc={"lines.linewidth": 2, 'grid.linestyle': '--'})
+
+def plotAUC(truth, pred, lab):
+    fpr, tpr, _ = metrics.roc_curve(truth,pred)
+    roc_auc = metrics.auc(fpr, tpr)
+    lw = 2
+    c = (np.random.rand(), np.random.rand(), np.random.rand())
+    plt.plot(fpr, tpr, color= c,lw=lw, label= lab +'(AUC = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC curve') #Receiver Operating Characteristic 
+    plt.legend(loc="lower right")
+
+
+######################use xgboost method 
+from sklearn.datasets import dump_svmlight_file
+from sklearn.metrics import precision_score
+
+dtrain = xgb.DMatrix(X_train, label=y_train)
+dtest = xgb.DMatrix(X_test, label=y_test)
+
+# set xgboost params
+param = {
+    'max_depth': 3,  # the maximum depth of each tree
+    'eta': 0.3,  # the training step for each iteration
+    'silent': 1,  # logging mode - quiet
+    'objective': 'multi:softprob',  # error evaluation for multiclass training
+    'num_class': 2}  # the number of classes that exist in this datset
+num_round = 20  # the number of training iterations
+
+#------------- numpy array ------------------
+# training and testing - numpy matrices
+bst = xgb.train(param, dtrain, num_round)
+preds = bst.predict(dtest)
+
+
+xgboost_predict = preds[:,1]
+plotAUC(y_test,xgboost_predict,'XGBOOST')
