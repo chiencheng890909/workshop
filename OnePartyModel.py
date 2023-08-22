@@ -408,7 +408,7 @@ class BaseModel:
                         if weight is not None:
                             cpu_labels = labels.cpu()
                             weights = torch.tensor(np.where(cpu_labels == 0, weight[0], weight[1]))
-                            loss_criterion = nn.BCELoss(weight=weights.cuda())
+                            loss_criterion = nn.BCELoss(weight=weights.to(self.device))
                         loss = loss_criterion(outputs, labels)
                         val_loss += loss.item()
                     preds = outputs > 0.5
