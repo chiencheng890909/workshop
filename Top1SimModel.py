@@ -273,7 +273,7 @@ class Top1SimModel(SimModel):
         if self.task == 'binary_cls' and class_weight:
             weight = [len(labels) / (np.sum(labels == 0) * 2), len(labels) / (np.sum(labels == 1) * 2)]
             print("class weight: ", "class 0 is", weight[0], ", class 1 is", weight[1])
-            print("data ratio: ", "class 0 is", (np.sum(labels == 0) / len(labels), ", class 1 is", (np.sum(labels == 1) / len(labels))
+            print("data ratio: ", "class 0 is", (np.sum(labels == 0) / len(labels)), ", class 1 is", (np.sum(labels == 1) / len(labels)))
 
         for epoch in range(self.num_epochs):
             if train_idx is not None:
